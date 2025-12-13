@@ -1,95 +1,119 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit, Trash2, Check } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { Plus, Edit, Trash2, Check, X } from "lucide-react";
+import {
+  useCreateSubject,
+  useDeleteSubject,
+  useGetAllSubjects,
+  useUpdateSubject,
+} from "@/hooks/useSubject";
+import {
+  useCreateChapter,
+  useDeleteChapter,
+  useUpdateChapter,
+} from "@/hooks/useChapter";
 
 interface Chapter {
-  id: string;
-  name: string;
-  videoUrl?: string;
-  pptUrl?: string;
-  resourceUrl?: string;
-  questions?: any[];
+  _id: string;
+  title: string;
 }
 
 interface Subject {
-  id: string;
-  name: string;
+  _id: string;
+  title: string;
   chapters: Chapter[];
 }
 
 interface SubjectManageModalProps {
   open: boolean;
   onClose: () => void;
-  subjects: Subject[];
-  onUpdate: (type: string, data: any) => void;
+  selectedCourse: string; // assuming it's the course ID
 }
 
-export const SubjectManageModal = ({ open, onClose, subjects, onUpdate }: SubjectManageModalProps) => {
-  const [editingSubject, setEditingSubject] = useState<any>(null);
-  const [editingChapter, setEditingChapter] = useState<any>(null);
-  const [subjectForm, setSubjectForm] = useState<any>({});
-  const [chapterForm, setChapterForm] = useState<any>({});
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+export const SubjectManageModal = ({
+  open,
+  onClose,
+  selectedCourse,
+}: SubjectManageModalProps) => {
+  // Independent states
+  const [newSubjectName, setNewSubjectName] = useState("");
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [editingSubjectName, setEditingSubjectName] = useState("");
 
+  // For chapters: one add input per subject + editing one chapter at a time
+  const [chapterInputs, setChapterInputs] = useState<Record<string, string>>(
+    {}
+  ); // subjectId -> new chapter name
+  const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
+  const [editingChapterName, setEditingChapterName] = useState("");
+
+  const { data: subjects } = useGetAllSubjects();
+
+  // Subject mutations
+  const { mutateAsync: createSubject } = useCreateSubject();
+  const { mutateAsync: updateSubject } = useUpdateSubject();
+  const { mutateAsync: deleteSubject } = useDeleteSubject();
+
+  // Chapter mutations
+  const { mutateAsync: createChapter } = useCreateChapter();
+  const { mutateAsync: updateChapter } = useUpdateChapter();
+  const { mutateAsync: deleteChapter } = useDeleteChapter();
+
+  // === Subject Handlers ===
   const handleAddSubject = () => {
-    const newSubject = { id: Date.now().toString(), name: subjectForm.name || "New Subject", chapters: [] };
-    onUpdate("subject", [...subjects, newSubject]);
-    toast({ title: "Subject Added" });
-    setSubjectForm({});
+    if (!newSubjectName.trim()) return;
+    createSubject({ title: newSubjectName.trim(), course: selectedCourse });
+    setNewSubjectName("");
   };
 
-  const handleEditSubject = (subject: Subject) => {
-    const updatedList = subjects.map((s) => (s.id === subject.id ? { ...s, name: subjectForm.name } : s));
-    onUpdate("subject", updatedList);
-    toast({ title: "Subject Updated" });
+  const startEditSubject = (subject: Subject) => {
+    setEditingSubject(subject);
+    setEditingSubjectName(subject.title);
+  };
+
+  const saveEditSubject = () => {
+    if (!editingSubject || !editingSubjectName.trim()) return;
+    updateSubject({ id: editingSubject._id, title: editingSubjectName.trim() });
     setEditingSubject(null);
-    setSubjectForm({});
+    setEditingSubjectName("");
   };
 
-  const handleDeleteSubject = (id: string) => {
-    onUpdate("subject", subjects.filter((s) => s.id !== id));
-    toast({ title: "Subject Deleted" });
+  const cancelEditSubject = () => {
+    setEditingSubject(null);
+    setEditingSubjectName("");
   };
 
-  const handleAddChapter = () => {
-    const newChapter = { 
-      id: `${selectedSubjectId}-${Date.now()}`, 
-      name: chapterForm.name || "New Chapter",
-      videoUrl: "",
-      pptUrl: "",
-      resourceUrl: "",
-      questions: []
-    };
-    const updatedSubjects = subjects.map((s) =>
-      s.id === selectedSubjectId ? { ...s, chapters: [...s.chapters, newChapter] } : s
-    );
-    onUpdate("subject", updatedSubjects);
-    toast({ title: "Chapter Added" });
-    setChapterForm({});
+  // === Chapter Handlers ===
+  const handleAddChapter = (subjectId: string) => {
+    const name = chapterInputs[subjectId]?.trim();
+    if (!name) return;
+    createChapter({ title: name, subject: subjectId });
+    setChapterInputs((prev) => ({ ...prev, [subjectId]: "" }));
   };
 
-  const handleEditChapter = (subjectId: string, chapter: Chapter) => {
-    const updatedSubjects = subjects.map((s) =>
-      s.id === subjectId
-        ? { ...s, chapters: s.chapters.map((c) => (c.id === chapter.id ? { ...c, name: chapterForm.name } : c)) }
-        : s
-    );
-    onUpdate("subject", updatedSubjects);
-    toast({ title: "Chapter Updated" });
+  const startEditChapter = (chapter: Chapter) => {
+    setEditingChapter(chapter);
+    setEditingChapterName(chapter.title);
+  };
+
+  const saveEditChapter = () => {
+    if (!editingChapter || !editingChapterName.trim()) return;
+    updateChapter({ id: editingChapter._id, title: editingChapterName.trim() });
     setEditingChapter(null);
-    setChapterForm({});
+    setEditingChapterName("");
   };
 
-  const handleDeleteChapter = (subjectId: string, chapterId: string) => {
-    const updatedSubjects = subjects.map((s) =>
-      s.id === subjectId ? { ...s, chapters: s.chapters.filter((c) => c.id !== chapterId) } : s
-    );
-    onUpdate("subject", updatedSubjects);
-    toast({ title: "Chapter Deleted" });
+  const cancelEditChapter = () => {
+    setEditingChapter(null);
+    setEditingChapterName("");
   };
 
   return (
@@ -100,111 +124,164 @@ export const SubjectManageModal = ({ open, onClose, subjects, onUpdate }: Subjec
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Add New Subject */}
           <div className="space-y-3">
             <Label>Add New Subject</Label>
             <div className="flex gap-2">
               <Input
                 placeholder="Subject name"
-                value={subjectForm.name || ""}
-                onChange={(e) => setSubjectForm({ name: e.target.value })}
+                value={newSubjectName}
+                onChange={(e) => setNewSubjectName(e.target.value)}
               />
-              <Button onClick={handleAddSubject}>
+              <Button
+                onClick={handleAddSubject}
+                disabled={!newSubjectName.trim()}
+              >
                 <Plus className="w-4 h-4" />
               </Button>
             </div>
           </div>
 
-          <div className="space-y-3">
-            {subjects.map((subject) => (
-              <div key={subject.id} className="border rounded-lg p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  {editingSubject?.id === subject.id ? (
+          {/* Subjects List */}
+          <div className="space-y-4">
+            {subjects?.map((subject) => (
+              <div
+                key={subject._id}
+                className="border rounded-lg p-4 space-y-3"
+              >
+                {/* Subject Row */}
+                <div className="flex items-center gap-3">
+                  {editingSubject?._id === subject._id ? (
                     <Input
-                      value={subjectForm.name || subject.name}
-                      onChange={(e) => setSubjectForm({ name: e.target.value })}
+                      value={editingSubjectName}
+                      onChange={(e) => setEditingSubjectName(e.target.value)}
                       className="flex-1"
+                      autoFocus
                     />
                   ) : (
-                    <span className="flex-1 font-semibold">{subject.name}</span>
+                    <span className="flex-1 font-semibold">
+                      {subject.title}
+                    </span>
                   )}
+
                   <div className="flex gap-1">
-                    {editingSubject?.id === subject.id ? (
-                      <Button size="sm" variant="ghost" onClick={() => handleEditSubject(subject)}>
-                        <Check className="w-4 h-4" />
-                      </Button>
+                    {editingSubject?._id === subject._id ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={saveEditSubject}
+                        >
+                          <Check className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={cancelEditSubject}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </>
                     ) : (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingSubject(subject);
-                          setSubjectForm({ name: subject.name });
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => startEditSubject(subject)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => deleteSubject(subject._id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
                     )}
-                    <Button size="sm" variant="ghost" onClick={() => handleDeleteSubject(subject.id)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
                   </div>
                 </div>
 
-                <div className="ml-4 space-y-2">
+                {/* Chapters Section */}
+                <div className="ml-6 space-y-2">
+                  {/* Add Chapter Input */}
                   <div className="flex gap-2">
                     <Input
                       placeholder="New chapter name"
-                      value={selectedSubjectId === subject.id ? chapterForm.name || "" : ""}
-                      onChange={(e) => {
-                        setSelectedSubjectId(subject.id);
-                        setChapterForm({ name: e.target.value });
-                      }}
+                      value={chapterInputs[subject._id] || ""}
+                      onChange={(e) =>
+                        setChapterInputs((prev) => ({
+                          ...prev,
+                          [subject._id]: e.target.value,
+                        }))
+                      }
                       className="text-sm"
                     />
-                    <Button size="sm" onClick={handleAddChapter} disabled={selectedSubjectId !== subject.id}>
+                    <Button
+                      size="sm"
+                      onClick={() => handleAddChapter(subject._id)}
+                      disabled={!chapterInputs[subject._id]?.trim()}
+                    >
                       <Plus className="w-3 h-3" />
                     </Button>
                   </div>
 
-                  {subject.chapters.map((chapter) => (
-                    <div key={chapter.id} className="flex items-center gap-2 p-2 bg-muted rounded">
-                      {editingChapter?.id === chapter.id ? (
+                  {/* Chapters List */}
+                  {subject.chapters?.map((chapter) => (
+                    <div
+                      key={chapter._id}
+                      className="flex items-center gap-2 p-2 bg-muted rounded"
+                    >
+                      {editingChapter?._id === chapter._id ? (
                         <Input
-                          value={chapterForm.name || chapter.name}
-                          onChange={(e) => setChapterForm({ name: e.target.value })}
+                          value={editingChapterName}
+                          onChange={(e) =>
+                            setEditingChapterName(e.target.value)
+                          }
                           className="flex-1 text-sm"
+                          autoFocus
                         />
                       ) : (
-                        <span className="flex-1 text-sm">{chapter.name}</span>
+                        <span className="flex-1 text-sm">{chapter.title}</span>
                       )}
+
                       <div className="flex gap-1">
-                        {editingChapter?.id === chapter.id ? (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditChapter(subject.id, chapter)}
-                          >
-                            <Check className="w-3 h-3" />
-                          </Button>
+                        {editingChapter?._id === chapter._id ? (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={saveEditChapter}
+                            >
+                              <Check className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={cancelEditChapter}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </>
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingChapter(chapter);
-                              setChapterForm({ name: chapter.name });
-                            }}
-                          >
-                            <Edit className="w-3 h-3" />
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => startEditChapter(chapter)}
+                            >
+                              <Edit className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => deleteChapter(chapter._id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteChapter(subject.id, chapter.id)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
                       </div>
                     </div>
                   ))}

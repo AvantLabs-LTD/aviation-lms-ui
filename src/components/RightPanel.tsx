@@ -3,10 +3,28 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Send, ChevronLeft, ChevronRight, MessageSquare, Edit, Check, X } from "lucide-react";
-import { useState } from "react";
+import {
+  Download,
+  Send,
+  ChevronLeft,
+  ChevronRight,
+  MessageSquare,
+  Edit,
+  Check,
+  X,
+  Settings,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { FeedbackViewModal } from "@/components/FeedbackViewModal";
+import {
+  useGetAllLessons,
+  useGetLessonById,
+  useUpdateLesson,
+} from "@/hooks/useLesson";
+import { LessonManageModal } from "./LessonManageModal";
+import { useGetChapterById } from "@/hooks/useChapter";
+import { useCreateFeedback, useGetAllFeedbacks } from "@/hooks/useFeedback";
 
 interface Lesson {
   id: string;
@@ -14,48 +32,49 @@ interface Lesson {
 }
 
 interface RightPanelProps {
-  subjectName: string;
-  lessons: Lesson[];
   selectedLesson: string | null;
   onLessonSelect: (lessonId: string) => void;
   resourceUrl: string;
   isAdmin?: boolean;
   currentUser?: string;
-  feedbacks?: any[];
-  onFeedbacksUpdate?: (type: string, data: any) => void;
   onResourceUpdate?: (url: string) => void;
+  selectedChapter?: string;
 }
 
 export const RightPanel = ({
-  subjectName,
-  lessons,
   selectedLesson,
   onLessonSelect,
-  resourceUrl,
   isAdmin = false,
   currentUser = "",
-  feedbacks = [],
-  onFeedbacksUpdate = () => {},
-  onResourceUpdate = () => {},
+  selectedChapter = "",
 }: RightPanelProps) => {
+  const { data: lessons } = useGetAllLessons(selectedChapter);
+  const { data: selectedChapterData } = useGetChapterById(selectedChapter);
+  const { data: selectedLessonData } = useGetLessonById(selectedLesson);
+  const { data: feedbacks } = useGetAllFeedbacks(selectedLesson);
+  const { mutateAsync: createFeedback } = useCreateFeedback();
   const [feedback, setFeedback] = useState("");
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [isEditingResource, setIsEditingResource] = useState(false);
-  const [editResourceUrl, setEditResourceUrl] = useState(resourceUrl);
-  
-  const currentIndex = lessons.findIndex(l => l.id === selectedLesson);
+  const [editResourceUrl, setEditResourceUrl] = useState(
+    selectedLessonData?.resourceUrl || ""
+  );
+  const { mutateAsync: updateLesson } = useUpdateLesson();
+  const [lessonModalOpen, setLessonModalOpen] = useState(false);
+
+  const currentIndex = lessons?.findIndex((l) => l._id === selectedLesson);
   const canGoPrev = currentIndex > 0;
-  const canGoNext = currentIndex < lessons.length - 1;
+  const canGoNext = currentIndex < lessons?.length - 1;
 
   const handlePrevious = () => {
     if (canGoPrev) {
-      onLessonSelect(lessons[currentIndex - 1].id);
+      onLessonSelect(lessons[currentIndex - 1]._id);
     }
   };
 
   const handleNext = () => {
     if (canGoNext) {
-      onLessonSelect(lessons[currentIndex + 1].id);
+      onLessonSelect(lessons[currentIndex + 1]._id);
     }
   };
 
@@ -69,38 +88,59 @@ export const RightPanel = ({
       return;
     }
 
-    const newFeedback = {
-      id: Date.now().toString(),
-      username: currentUser,
+    createFeedback({
       text: feedback,
-      done: false,
-    };
-    
-    onFeedbacksUpdate("feedbacks", [...feedbacks, newFeedback]);
-    
+      lesson: selectedLesson || "",
+    });
+
     toast({
       title: "Feedback Submitted",
       description: "Thank you for your feedback!",
     });
-    
+
     setFeedback("");
   };
 
   const handleSaveResource = () => {
-    onResourceUpdate(editResourceUrl);
+    updateLesson({
+      id: selectedLesson || "",
+      resourceUrl: editResourceUrl,
+    });
     setIsEditingResource(false);
-    toast({ title: "Resource Updated" });
   };
 
+  useEffect(() => {
+    if (
+      lessons &&
+      lessons.length > 0 &&
+      !lessons.find((s) => s._id === selectedLesson)
+    ) {
+      onLessonSelect(lessons[0]._id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessons, selectedChapter]);
   return (
     <div className="space-y-4 p-4 border-l bg-card h-[calc(100vh-73px)] overflow-y-auto">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">{subjectName}</CardTitle>
+          <CardTitle className="text-lg flex justify-between">
+            {selectedChapterData?.title || "Lesson Navigation"}
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setLessonModalOpen(true)}
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground mb-3">Lesson Navigation</p>
+            <p className="text-sm font-medium text-muted-foreground mb-3">
+              Lesson Navigation
+            </p>
             <div className="flex items-center gap-2 mb-3">
               <Button
                 variant="outline"
@@ -122,17 +162,17 @@ export const RightPanel = ({
               </Button>
             </div>
             <div className="space-y-1">
-              {lessons.map((lesson) => (
+              {lessons?.map((lesson) => (
                 <button
-                  key={lesson.id}
-                  onClick={() => onLessonSelect(lesson.id)}
+                  key={lesson._id}
+                  onClick={() => onLessonSelect(lesson._id)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                    selectedLesson === lesson.id
+                    selectedLesson === lesson._id
                       ? "bg-primary text-primary-foreground"
                       : "hover:bg-muted"
                   }`}
                 >
-                  {lesson.name}
+                  {lesson.title}
                 </button>
               ))}
             </div>
@@ -151,12 +191,16 @@ export const RightPanel = ({
                 onClick={() => {
                   if (isEditingResource) handleSaveResource();
                   else {
-                    setEditResourceUrl(resourceUrl);
+                    setEditResourceUrl(selectedLessonData?.resourceUrl);
                     setIsEditingResource(true);
                   }
                 }}
               >
-                {isEditingResource ? <Check className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
+                {isEditingResource ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <Edit className="w-4 h-4" />
+                )}
               </Button>
             )}
           </CardTitle>
@@ -170,7 +214,12 @@ export const RightPanel = ({
                 onChange={(e) => setEditResourceUrl(e.target.value)}
                 placeholder="https://..."
               />
-              <Button variant="outline" size="sm" onClick={() => setIsEditingResource(false)} className="w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditingResource(false)}
+                className="w-full"
+              >
                 <X className="w-4 h-4 mr-2" />
                 Cancel
               </Button>
@@ -180,8 +229,8 @@ export const RightPanel = ({
               variant="outline"
               className="w-full"
               onClick={() => {
-                if (resourceUrl) {
-                  window.open(resourceUrl, "_blank");
+                if (selectedLessonData?.resourceUrl) {
+                  window.open(selectedLessonData?.resourceUrl, "_blank");
                   toast({
                     title: "Download Started",
                     description: "Your resource is being downloaded.",
@@ -207,7 +256,20 @@ export const RightPanel = ({
           <CardTitle className="text-lg flex items-center justify-between">
             Feedback
             {isAdmin && (
-              <Button variant="ghost" size="sm" onClick={() => setFeedbackModalOpen(true)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (!feedbacks?.length) {
+                    toast({
+                      title: "No Feedbacks",
+                      description: "There are no feedbacks to view.",
+                    });
+                    return;
+                  }
+                  setFeedbackModalOpen(true);
+                }}
+              >
                 <MessageSquare className="w-4 h-4 mr-1" />
                 View All
               </Button>
@@ -237,11 +299,20 @@ export const RightPanel = ({
         </CardContent>
       </Card>
 
-      <FeedbackViewModal
-        open={feedbackModalOpen}
-        onClose={() => setFeedbackModalOpen(false)}
-        feedbacks={feedbacks}
-        onUpdate={onFeedbacksUpdate}
+      {feedbacks?.length ? (
+        <FeedbackViewModal
+          open={feedbackModalOpen}
+          onClose={() => setFeedbackModalOpen(false)}
+          feedbacks={feedbacks}
+        />
+      ) : (
+        <></>
+      )}
+
+      <LessonManageModal
+        chapterId={selectedChapter}
+        onClose={() => setLessonModalOpen(false)}
+        open={lessonModalOpen}
       />
     </div>
   );

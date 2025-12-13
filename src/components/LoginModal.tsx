@@ -9,21 +9,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/hooks/use-toast";
 
 interface LoginModalProps {
   open: boolean;
   onClose: () => void;
-  onLogin: (username: string, role: "student" | "admin") => void;
+  onLogin: (password: string, email: string) => void;
 }
 
 export const LoginModal = ({ open, onClose, onLogin }: LoginModalProps) => {
-  const [username, setUsername] = useState("");
-  const [role, setRole] = useState<"student" | "admin">("student");
-
+  const [password, setPassword] = useState("");
+  const [email, setEmmail] = useState("");
   const handleLogin = () => {
-    if (!username.trim()) {
+    if (!email.trim()) {
       toast({
         title: "Username Required",
         description: "Please enter a username.",
@@ -32,8 +30,8 @@ export const LoginModal = ({ open, onClose, onLogin }: LoginModalProps) => {
       return;
     }
 
-    onLogin(username, role);
-    setUsername("");
+    onLogin(password, email);
+    setEmmail("");
     onClose();
   };
 
@@ -46,38 +44,30 @@ export const LoginModal = ({ open, onClose, onLogin }: LoginModalProps) => {
             Please enter your credentials to continue
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
-              id="username"
-              placeholder="Enter your username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              id="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleLogin()}
             />
           </div>
-          
           <div className="space-y-2">
-            <Label>Role</Label>
-            <RadioGroup value={role} onValueChange={(v) => setRole(v as "student" | "admin")}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="student" id="student" />
-                <Label htmlFor="student" className="font-normal cursor-pointer">
-                  Student
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="admin" id="admin" />
-                <Label htmlFor="admin" className="font-normal cursor-pointer">
-                  Admin
-                </Label>
-              </div>
-            </RadioGroup>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+            />
           </div>
         </div>
-        
+
         <Button onClick={handleLogin} className="w-full">
           Login
         </Button>

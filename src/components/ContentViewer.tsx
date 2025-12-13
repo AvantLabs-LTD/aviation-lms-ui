@@ -5,24 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { toast } from "@/hooks/use-toast";
+import { useGetLessonById, useUpdateLesson } from "@/hooks/useLesson";
 
 interface ContentViewerProps {
-  videoUrl: string;
-  pptUrl: string;
+  selectedLesson?: string;
   isAdmin?: boolean;
-  onUpdate?: (updates: { videoUrl?: string; pptUrl?: string }) => void;
 }
 
-export const ContentViewer = ({ videoUrl, pptUrl, isAdmin = false, onUpdate = () => {} }: ContentViewerProps) => {
+export const ContentViewer = ({
+  selectedLesson = "1",
+  isAdmin = false,
+}: ContentViewerProps) => {
+  const { data: lesson } = useGetLessonById(selectedLesson);
   const [isEditing, setIsEditing] = useState(false);
-  const [editVideoUrl, setEditVideoUrl] = useState(videoUrl);
-  const [editPptUrl, setEditPptUrl] = useState(pptUrl);
+  const [editVideoUrl, setEditVideoUrl] = useState(lesson?.videoUrl);
+  const [editPptUrl, setEditPptUrl] = useState(lesson?.pptUrl);
+  const { mutateAsync: update } = useUpdateLesson();
 
   const handleSave = () => {
-    onUpdate({ videoUrl: editVideoUrl, pptUrl: editPptUrl });
     setIsEditing(false);
-    toast({ title: "Content Updated", description: "Video and PPT URLs have been updated." });
+    update({
+      id: selectedLesson,
+      videoUrl: editVideoUrl,
+      pptUrl: editPptUrl,
+    });
   };
 
   return (
@@ -36,8 +42,8 @@ export const ContentViewer = ({ videoUrl, pptUrl, isAdmin = false, onUpdate = ()
               onClick={() => {
                 if (isEditing) handleSave();
                 else {
-                  setEditVideoUrl(videoUrl);
-                  setEditPptUrl(pptUrl);
+                  setEditVideoUrl(lesson?.videoUrl);
+                  setEditPptUrl(lesson?.pptUrl);
                   setIsEditing(true);
                 }
               }}
@@ -47,7 +53,7 @@ export const ContentViewer = ({ videoUrl, pptUrl, isAdmin = false, onUpdate = ()
             </Button>
           </div>
         )}
-        
+
         {isEditing ? (
           <div className="space-y-4">
             <div>
@@ -79,12 +85,12 @@ export const ContentViewer = ({ videoUrl, pptUrl, isAdmin = false, onUpdate = ()
                 PPT
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="video" className="mt-4">
               <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                {videoUrl ? (
+                {lesson?.videoUrl ? (
                   <iframe
-                    src={videoUrl}
+                    src={lesson?.videoUrl}
                     className="w-full h-full rounded-lg"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -97,12 +103,12 @@ export const ContentViewer = ({ videoUrl, pptUrl, isAdmin = false, onUpdate = ()
                 )}
               </div>
             </TabsContent>
-            
+
             <TabsContent value="ppt" className="mt-4">
               <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                {pptUrl ? (
+                {lesson?.pptUrl ? (
                   <iframe
-                    src={pptUrl}
+                    src={lesson?.pptUrl}
                     className="w-full h-full rounded-lg"
                   />
                 ) : (
