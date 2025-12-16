@@ -48,18 +48,18 @@ export const useUpdateLesson = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: any): Promise<any> => {
-      const id = payload.id;
-      delete payload.id;
+    mutationFn: async ({ id, formData }: any) => {
       const data = await apiClient<any>(`/lessons/${id}`, {
         method: "PUT",
-        body: payload,
+        body: formData || {},
       });
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["getAllLessons"] });
-      queryClient.invalidateQueries({ queryKey: ["getLessonById"] });
+      queryClient.invalidateQueries({
+        queryKey: ["getLessonById", variables.id],
+      });
     },
   });
 };
