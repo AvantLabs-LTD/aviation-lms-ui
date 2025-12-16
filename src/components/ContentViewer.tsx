@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from "react";
 import { useGetLessonById, useUpdateLesson } from "@/hooks/useLesson";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
-import "@videojs/http-streaming"; // For HLS
+//import "@videojs/http-streaming"; // For HLS
 
 interface ContentViewerProps {
   selectedLesson?: string;
@@ -62,18 +62,18 @@ export const ContentViewer = ({
     }
   };
 
-  useEffect(() => {
-    if (videoRef.current && lesson?.videoUrl) {
-      playerRef.current = videojs(videoRef.current, {
-        autoplay: false,
-        controls: true,
-        sources: [{ src: lesson.videoUrl, type: "application/x-mpegURL" }], // HLS type
-      });
-    }
-    return () => {
-      if (playerRef.current) playerRef.current.dispose();
-    };
-  }, [lesson?.videoUrl]);
+  // useEffect(() => {
+  //   if (videoRef.current && lesson?.videoUrl) {
+  //     // playerRef.current = videojs(videoRef.current, {
+  //     //   autoplay: false,
+  //     //   controls: true,
+  //     //   sources: [{ src: lesson.videoUrl, type: "application/x-mpegURL" }], // HLS type
+  //     // });
+  //   }
+  //   return () => {
+  //     if (playerRef.current) playerRef.current.dispose();
+  //   };
+  // }, [lesson?.videoUrl]);
 
   const handleSave = () => {
     setIsEditing(false);
@@ -177,9 +177,15 @@ export const ContentViewer = ({
                 {lesson?.videoUrl ? (
                   <video
                     ref={videoRef}
-                    className="video-js vjs-big-play-centered w-full h-full"
+                    className="w-full h-full"
                     playsInline
-                  />
+                    autoPlay
+                    controls
+                    loop
+                  >
+                    <source src={lesson?.videoUrl} type="video/mp4" />
+                  </video>
+
                 ) : (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
                     <Video className="w-16 h-16 mx-auto mb-4 opacity-50" />
