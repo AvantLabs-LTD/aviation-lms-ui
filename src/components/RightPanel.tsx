@@ -56,6 +56,7 @@ export const RightPanel = ({
   const [feedback, setFeedback] = useState("");
   const [feedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [isEditingResource, setIsEditingResource] = useState(false);
+  const [resourceFile, setResourceFile] = useState<File | null>(null);
   const [editResourceUrl, setEditResourceUrl] = useState(
     selectedLessonData?.resourceUrl || ""
   );
@@ -102,10 +103,13 @@ export const RightPanel = ({
   };
 
   const handleSaveResource = () => {
+    const formDataResource = new FormData();
+    formDataResource.append("resource", resourceFile);
     updateLesson({
-      id: selectedLesson || "",
-      resourceUrl: editResourceUrl,
+      id: selectedLesson,
+      formData: formDataResource,
     });
+    setResourceFile(null);
     setIsEditingResource(false);
   };
 
@@ -208,16 +212,33 @@ export const RightPanel = ({
         <CardContent>
           {isEditingResource ? (
             <div className="space-y-2">
-              <Label>Resource URL</Label>
-              <Input
-                value={editResourceUrl}
-                onChange={(e) => setEditResourceUrl(e.target.value)}
-                placeholder="https://..."
-              />
+              <div>
+                <Label htmlFor="file-upload">Upload New File</Label>
+                <input
+                  id="file-upload"
+                  type="file"
+                  onChange={(e) => setResourceFile(e.target.files?.[0] || null)}
+                  className="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                />
+                {resourceFile && (
+                  <p className="mt-2 text-sm text-green-600">
+                    Selected: {resourceFile.name} (
+                    {(resourceFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                )}
+                {selectedLessonData?.resourceUrl && !resourceFile && (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Current file will be kept if no new file is selected
+                  </p>
+                )}
+              </div>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsEditingResource(false)}
+                onClick={() => {
+                  setIsEditingResource(false);
+                  setResourceFile(null);
+                }}
                 className="w-full"
               >
                 <X className="w-4 h-4 mr-2" />
@@ -230,6 +251,7 @@ export const RightPanel = ({
               className="w-full"
               onClick={() => {
                 if (selectedLessonData?.resourceUrl) {
+                  console.log(selectedLessonData.resourceUrl);
                   window.open(selectedLessonData?.resourceUrl, "_blank");
                   toast({
                     title: "Download Started",

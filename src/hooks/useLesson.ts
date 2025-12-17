@@ -49,6 +49,9 @@ export const useUpdateLesson = () => {
 
   return useMutation({
     mutationFn: async ({ id, formData }: any) => {
+      console.log(formData.get("ppt"));
+      console.log(formData.get("video"));
+      console.log(formData.get("resource"));
       const data = await apiClient<any>(`/lessons/${id}`, {
         method: "PUT",
         body: formData || {},
@@ -58,7 +61,7 @@ export const useUpdateLesson = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["getAllLessons"] });
       queryClient.invalidateQueries({
-        queryKey: ["getLessonById", variables.id],
+        queryKey: ["getLessonById"],
       });
     },
   });

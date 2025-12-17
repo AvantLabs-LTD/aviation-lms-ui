@@ -91,6 +91,8 @@ export const ContentViewer = ({
       )}`
     : "";
 
+  console.log(pptEmbedUrl);
+
   if (isPending) return <div>Loading...</div>;
 
   return (
@@ -134,7 +136,7 @@ export const ContentViewer = ({
               )}
               {lesson?.videoUrl && !videoFile && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Current video will be kept
+                  Current video will be kept if no new file is selected
                 </p>
               )}
             </div>
@@ -157,7 +159,7 @@ export const ContentViewer = ({
               )}
               {lesson?.pptUrl && !pptFile && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Current presentation will be kept
+                  Current presentation will be kept if no new file is selected
                 </p>
               )}
             </div>
@@ -171,7 +173,16 @@ export const ContentViewer = ({
         ) : (
           // Existing Tabs with Video.js and PPT iframe viewer (unchanged)
           <Tabs defaultValue="video" className="w-full">
-            {/* ... your existing tabs content ... */}
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="video" className="flex items-center gap-2">
+                <Video className="w-4 h-4" />
+                Video
+              </TabsTrigger>
+              <TabsTrigger value="ppt" className="flex items-center gap-2">
+                <FileText className="w-4 h-4" />
+                PPT
+              </TabsTrigger>
+            </TabsList>
             <TabsContent value="video" className="mt-4">
               <div className="aspect-video bg-black rounded-lg overflow-hidden">
                 {lesson?.videoUrl ? (
@@ -185,7 +196,6 @@ export const ContentViewer = ({
                   >
                     <source src={lesson?.videoUrl} type="video/mp4" />
                   </video>
-
                 ) : (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
                     <Video className="w-16 h-16 mx-auto mb-4 opacity-50" />
