@@ -66,3 +66,35 @@ export const useGetLoggedInUser = () => {
     },
   });
 };
+
+/**
+ * Hook to update student progress by adding a completed lesson
+ */
+export const useUpdateProgress = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (lessonId: string) => {
+      const response = await apiClient<{ message: string; progress: string[] }>(
+        "/auth/progress",
+        {
+          method: "POST",
+          body: { lessonId },
+        }
+      );
+      return response;
+    },
+    onSuccess: (data) => {
+      // Invalidate or update the logged-in user query to reflect new progress
+      queryClient.invalidateQueries({ queryKey: ["getLoggedInUser"] });
+
+      // Optional: If you have other queries that depend on progress (e.g., lesson lists),
+      // invalidate them here as well
+      // queryClient.invalidateQueries({ queryKey: ["lessons"] });
+    },
+    onError: (error: any) => {
+      console.error("Failed to update progress:", error);
+      // You can handle error toast/notification here if needed
+    },
+  });
+};

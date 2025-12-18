@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { SubjectNav } from "@/components/SubjectNav";
 import { ContentViewer } from "@/components/ContentViewer";
 import { QuestionsSection } from "@/components/QuestionsSection";
 import { RightPanel } from "@/components/RightPanel";
 import { LoginModal } from "@/components/LoginModal";
-import { useGetLoggedInUser, useLogin } from "@/hooks/useAuth";
+import {
+  useGetLoggedInUser,
+  useLogin,
+  useUpdateProgress,
+} from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { StudentManageModal } from "@/components/StudentManageModal";
@@ -17,6 +21,7 @@ const Index = () => {
   const [studentModalOpen, setStudentModalOpen] = useState(false);
   const { mutateAsync: login, isPending: loginPending } = useLogin();
   const { data: user } = useGetLoggedInUser();
+  const { mutate: updateProgress } = useUpdateProgress();
   const [selectedCourse, setSelectedCourse] = useState("1");
 
   // Collapse states
@@ -61,6 +66,13 @@ const Index = () => {
     }));
     setSubjects(updatedSubjects);
   };
+
+  useEffect(() => {
+    if (user?.role === "student" && selectedLesson) {
+      updateProgress(selectedLesson);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLesson]);
 
   return (
     <div className="h-screen overflow-hidden bg-background flex flex-col">

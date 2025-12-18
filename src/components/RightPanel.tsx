@@ -13,6 +13,7 @@ import {
   Check,
   X,
   Settings,
+  CheckCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -25,6 +26,7 @@ import {
 import { LessonManageModal } from "./LessonManageModal";
 import { useGetChapterById } from "@/hooks/useChapter";
 import { useCreateFeedback, useGetAllFeedbacks } from "@/hooks/useFeedback";
+import { useGetLoggedInUser } from "@/hooks/useAuth";
 
 interface Lesson {
   id: string;
@@ -60,6 +62,7 @@ export const RightPanel = ({
   const [editResourceUrl, setEditResourceUrl] = useState(
     selectedLessonData?.resourceUrl || ""
   );
+  const { data: loggedInUser } = useGetLoggedInUser();
   const { mutateAsync: updateLesson } = useUpdateLesson();
   const [lessonModalOpen, setLessonModalOpen] = useState(false);
 
@@ -170,13 +173,22 @@ export const RightPanel = ({
                 <button
                   key={lesson._id}
                   onClick={() => onLessonSelect(lesson._id)}
-                  className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                  className={`w-full flex justify-between items-center text-left px-3 py-2 rounded-md text-sm transition-colors ${
                     selectedLesson === lesson._id
                       ? "bg-primary text-primary-foreground"
                       : "hover:bg-muted"
                   }`}
                 >
                   {lesson.title}
+                  {loggedInUser?.progress.includes(selectedLesson) && (
+                    <CheckCircle
+                      className={`w-4 h-4 ${
+                        selectedLesson === lesson._id
+                          ? "text-primary-foreground"
+                          : "text-green-500"
+                      }`}
+                    />
+                  )}
                 </button>
               ))}
             </div>
