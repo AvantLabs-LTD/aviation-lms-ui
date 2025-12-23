@@ -8,13 +8,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit, Trash2, Check } from "lucide-react";
+import { Plus, Edit, Trash2, Check, X, GripVertical } from "lucide-react";
 import {
   useCreateLesson,
   useDeleteLesson,
   useGetAllLessons,
   useUpdateLesson,
+  useReorderLessons,
 } from "@/hooks/useLesson";
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "react-beautiful-dnd";
 
 interface LessonManageModalProps {
   open: boolean;
@@ -27,24 +34,23 @@ export const LessonManageModal = ({
   onClose,
   chapterId,
 }: LessonManageModalProps) => {
-  // Separate state for adding new lesson
+  // States
   const [newLessonName, setNewLessonName] = useState("");
-
-  // State for editing: stores the lesson being edited (or null)
   const [editingLesson, setEditingLesson] = useState<any>(null);
-  // Separate state for the edit input value
   const [editLessonName, setEditLessonName] = useState("");
 
-  const { data: lessons } = useGetAllLessons(chapterId);
-
+  // Hooks
+  const { data: lessons = [] } = useGetAllLessons(chapterId);
   const { mutateAsync: create } = useCreateLesson();
   const { mutateAsync: update } = useUpdateLesson();
   const { mutateAsync: deleteLesson } = useDeleteLesson();
+  const { mutateAsync: reorderLessons } = useReorderLessons();
 
+  // === Handlers ===
   const handleAdd = () => {
     if (!newLessonName.trim()) return;
     create({ title: newLessonName.trim(), chapter: chapterId });
-    setNewLessonName(""); // clear input
+    setNewLessonName("");
   };
 
   const startEdit = (lesson: any) => {
@@ -55,7 +61,7 @@ export const LessonManageModal = ({
   const handleEdit = () => {
     if (!editingLesson || !editLessonName.trim()) return;
     update({
-      id: editingLesson._id || editingLesson.id,
+      id: editingLesson._id,
       title: editLessonName.trim(),
     });
     setEditingLesson(null);
@@ -69,6 +75,28 @@ export const LessonManageModal = ({
 
   const handleDelete = (id: string) => {
     deleteLesson(id);
+  };
+
+  // === Reorder Handler ===
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    if (result.source.index === result.destination.index) return;
+
+    // Create new ordered array
+    const newOrder = Array.from(lessons);
+    const [moved] = newOrder.splice(result.source.index, 1);
+    newOrder.splice(result.destination.index, 0, moved);
+
+    // Extract ordered IDs
+    const orderedIds = newOrder.map((lesson: any) => lesson._id);
+
+    // Call reorder mutation
+    if (chapterId) {
+      reorderLessons({
+        chapterId,
+        orderedIds,
+      });
+    }
   };
 
   return (
@@ -94,57 +122,89 @@ export const LessonManageModal = ({
             </div>
           </div>
 
-          {/* Existing Lessons */}
-          <div className="space-y-2">
-            <Label>Existing Lessons</Label>
-            {lessons?.map((lesson) => (
-              <div
-                key={lesson._id || lesson.id}
-                className="flex items-center gap-2 p-2 border rounded-lg"
-              >
-                {editingLesson?._id === lesson._id ? (
-                  <Input
-                    value={editLessonName || lesson.title}
-                    onChange={(e) => setEditLessonName(e.target.value)}
-                    className="flex-1"
-                    autoFocus
-                  />
-                ) : (
-                  <span className="flex-1 font-medium">{lesson.title}</span>
-                )}
+          {/* Existing Lessons – Drag & Drop */}
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId={`lessons-${chapterId}`}>
+              {(provided) => (
+                <div {...provided.droppableProps} ref={provided.innerRef}>
+                  <Label>Existing Lessons</Label>
+                  {lessons.map((lesson, index) => (
+                    <Draggable
+                      key={lesson._id}
+                      draggableId={lesson._id}
+                      index={index}
+                    >
+                      {(draggableProvided) => (
+                        <div
+                          ref={draggableProvided.innerRef}
+                          {...draggableProvided.draggableProps}
+                          className="flex items-center gap-2 p-2 border rounded-lg mb-2 bg-card"
+                        >
+                          <div {...draggableProvided.dragHandleProps}>
+                            <GripVertical className="w-5 h-5 text-muted-foreground cursor-grab" />
+                          </div>
 
-                <div className="flex gap-1">
-                  {editingLesson?._id === lesson._id ? (
-                    <>
-                      <Button size="sm" variant="ghost" onClick={handleEdit}>
-                        <Check className="w-4 h-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={cancelEdit}>
-                        Cancel
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => startEdit(lesson)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDelete(lesson._id || lesson.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </>
-                  )}
+                          {editingLesson?._id === lesson._id ? (
+                            <Input
+                              value={editLessonName}
+                              onChange={(e) =>
+                                setEditLessonName(e.target.value)
+                              }
+                              className="flex-1"
+                              autoFocus
+                            />
+                          ) : (
+                            <span className="flex-1 font-medium">
+                              {lesson.title}
+                            </span>
+                          )}
+
+                          <div className="flex gap-1">
+                            {editingLesson?._id === lesson._id ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={handleEdit}
+                                >
+                                  <Check className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={cancelEdit}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => startEdit(lesson)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDelete(lesson._id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
                 </div>
-              </div>
-            ))}
-          </div>
+              )}
+            </Droppable>
+          </DragDropContext>
         </div>
       </DialogContent>
     </Dialog>

@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
 
+interface ReorderChaptersPayload {
+  subjectId: string;
+  orderedIds: string[]; // array of chapter _id strings
+}
+
 export const useCreateChapter = () => {
   const queryClient = useQueryClient();
 
@@ -72,6 +77,24 @@ export const useDeleteChapter = () => {
       });
       return data;
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["getAllSubjects"] });
+    },
+  });
+};
+
+export const useReorderChapters = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: ReorderChaptersPayload): Promise<any> => {
+      const data = await apiClient<any>("/chapters/reorder", {
+        method: "POST",
+        body: payload,
+      });
+      return data;
+    },
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["getAllSubjects"] });
     },

@@ -11,7 +11,10 @@ export const SubjectNav = ({
   isAdmin = false,
   selectedCourse,
 }: any) => {
-  const { data: subjects } = useGetAllSubjects();
+  const { data: subjectsData } = useGetAllSubjects();
+  // Filter subjects by current course (important!)
+  const subjects =
+    subjectsData?.filter((s: any) => s.course._id === selectedCourse) ?? [];
   const [expandedSubject, setExpandedSubject] = useState<string | null>(
     subjects?.[0]?._id
   );

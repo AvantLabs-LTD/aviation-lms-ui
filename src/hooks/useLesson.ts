@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api/client";
 
+interface ReorderLessonsPayload {
+  chapterId: string;
+  orderedIds: string[]; // array of lesson _id strings
+}
+
 export const useCreateLesson = () => {
   const queryClient = useQueryClient();
 
@@ -80,6 +85,55 @@ export const useDeleteLesson = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["getAllLessons"] });
       queryClient.invalidateQueries({ queryKey: ["getLessonById"] });
+    },
+  });
+};
+
+export const useReorderLessons = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: ReorderLessonsPayload): Promise<any> => {
+      const data = await apiClient<any>("/lessons/reorder", {
+        method: "POST",
+        body: payload,
+      });
+      return data;
+    },
+
+    onMutate: async (payload: ReorderLessonsPayload) => {
+      await queryClient.cancelQueries({ queryKey: ["getAllLessons"] });
+
+      const previousLessons: any = queryClient.getQueryData(["getAllLessons"]);
+
+      if (previousLessons) {
+        const updatedLessons = previousLessons?.map((lesson: any) => {
+          const newIndex = payload.orderedIds.indexOf(lesson._id);
+          if (newIndex !== -1) {
+            return { ...lesson, order: newIndex + 1 };
+          }
+          return lesson;
+        });
+
+        updatedLessons.sort((a: any, b: any) => a.order - b.order);
+        queryClient.setQueryData(["getAllLessons"], updatedLessons);
+      }
+
+      return { previousLessons };
+    },
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["getAllLessons"] });
+    },
+
+    onError: (error, payload, context) => {
+      if (context?.previousLessons) {
+        queryClient.setQueryData(["getAllLessons"], context.previousLessons);
+      }
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["getAllLessons"] });
     },
   });
 };
